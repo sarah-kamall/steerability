@@ -288,6 +288,12 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", default="Qwen/Qwen2.5-0.5B-Instruct")
     parser.add_argument("--device-map", default="auto")
+    parser.add_argument(
+        "--attn-implementation",
+        choices=("eager", "sdpa"),
+        default="eager",
+        help="Attention implementation used during the Fisher/gradient forwards.",
+    )
     parser.add_argument("--kappa", type=float, default=1e-5)
     parser.add_argument("--damping", type=float, default=1e-5)
     parser.add_argument("--fisher-samples", type=int, default=24)
@@ -315,7 +321,10 @@ def main() -> None:
     common_pipeline_args = {
         "model_name_or_path": args.model,
         "device_map": args.device_map,
-        "hf_model_kwargs": {"dtype": torch.float32},
+        "hf_model_kwargs": {
+            "dtype": torch.float32,
+            "attn_implementation": args.attn_implementation,
+        },
     }
 
     print(f"Loading baseline model: {args.model}")
@@ -371,6 +380,7 @@ def main() -> None:
     report = {
         "config": {
             "model": args.model,
+            "attn_implementation": args.attn_implementation,
             "kappa": args.kappa,
             "damping": args.damping,
             "fisher_samples": min(args.fisher_samples, len(prior_data)),

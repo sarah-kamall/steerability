@@ -36,10 +36,19 @@ def drift_budget_update(
         raise ValueError("gradients and fisher must not be empty.")
     if any(gradient.shape != diagonal.shape for gradient, diagonal in zip(gradients, fisher)):
         raise ValueError("Every Fisher tensor must match its gradient tensor's shape.")
+    for index, gradient in enumerate(gradients):
+        if not torch.isfinite(gradient).all():
+            raise FloatingPointError(f"Target gradient tensor {index} contains non-finite values.")
+    for index, diagonal in enumerate(fisher):
+        if not torch.isfinite(diagonal).all():
+            raise FloatingPointError(f"Fisher tensor {index} contains non-finite values.")
 
     directions = [gradient.float() / (diagonal.float() + damping) for gradient, diagonal in zip(gradients, fisher)]
-    q = sum(float((gradient.float() * direction).sum().detach().cpu()) for gradient, direction in zip(gradients, directions))
-    gradient_norm_sq = sum(float(gradient.float().square().sum().detach().cpu()) for gradient in gradients)
+    q = sum(
+        float((gradient.double() * direction.double()).sum().detach().cpu())
+        for gradient, direction in zip(gradients, directions)
+    )
+    gradient_norm_sq = sum(float(gradient.double().square().sum().detach().cpu()) for gradient in gradients)
 
     if not math.isfinite(q):
         raise FloatingPointError("The Fisher-preconditioned quadratic form is not finite.")

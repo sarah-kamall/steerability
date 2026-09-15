@@ -1,6 +1,7 @@
 """Tests for the prior-Fisher drift-budget structural control."""
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import torch
@@ -11,7 +12,11 @@ from steerability.algorithms.core.execution.payloads import LoRAArtifact
 from steerability.algorithms.core.registry import REGISTRY
 from steerability.algorithms.core.steering_pipeline import SteeringPipeline
 from steerability.algorithms.structural_control.fisher_drift import FisherDrift
-from steerability.algorithms.structural_control.fisher_drift.estimation import collate_rows
+from steerability.algorithms.structural_control.fisher_drift.estimation import (
+    collate_rows,
+    compute_target_gradient,
+    estimate_diagonal_fisher,
+)
 from steerability.algorithms.structural_control.fisher_drift.update import drift_budget_update
 
 
@@ -70,6 +75,67 @@ def test_default_collator_masks_padding_and_preserves_label_masks():
     assert batch["attention_mask"].tolist() == [[1, 1, 1, 1], [1, 1, 1, 0]]
     assert batch["labels"][0].tolist() == [-100, -100, 5, 6]
     assert batch["labels"][1].tolist() == [1, 7, 8, -100]
+
+
+class _SometimesNonfiniteModel(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.embedding = torch.nn.Embedding(16, 3)
+        self.logit_bias = torch.nn.Parameter(torch.tensor([0.1, 0.2, 0.3]))
+
+    def get_input_embeddings(self):
+        return self.embedding
+
+    def forward(self, input_ids, attention_mask, use_cache):
+        del attention_mask, use_cache
+        logits = self.logit_bias.view(1, 1, -1).expand(input_ids.shape[0], input_ids.shape[1], -1)
+        if int(input_ids[0, 0]) == 9:
+            logits = logits.clone()
+            logits[:, 0] = torch.full_like(logits[:, 0], float("nan"))
+        return SimpleNamespace(logits=logits)
+
+
+def test_fisher_skips_an_isolated_nonfinite_context():
+    model = _SometimesNonfiniteModel()
+    rows = [
+        {"input_ids": [9, 2], "labels": [9, 2]},
+        {"input_ids": [1, 2], "labels": [1, 2]},
+    ]
+
+    with pytest.warns(RuntimeWarning, match="non-finite logits"):
+        fisher, contexts = estimate_diagonal_fisher(
+            model,
+            [model.logit_bias],
+            rows,
+            _Tokenizer(),
+            num_samples=2,
+            seed=0,
+            max_length=8,
+        )
+
+    assert contexts == 1
+    assert torch.isfinite(fisher[0]).all()
+
+
+def test_target_gradient_ignores_nonfinite_unsupervised_positions():
+    model = _SometimesNonfiniteModel()
+    row = {
+        "input_ids": [9, 1, 2],
+        "attention_mask": [1, 1, 1],
+        "labels": [-100, -100, 2],
+    }
+
+    gradients, tokens = compute_target_gradient(
+        model,
+        [model.logit_bias],
+        [row],
+        _Tokenizer(),
+        batch_size=1,
+        max_length=8,
+    )
+
+    assert tokens == 1
+    assert torch.isfinite(gradients[0]).all()
 
 
 def test_args_validation():
