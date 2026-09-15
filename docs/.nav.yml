@@ -99,6 +99,7 @@ nav:
             - UserPrefix: reference/algorithms/input_control/user_prefix.md
         - Structural control:
             - Base classes: reference/algorithms/structural_control/base_structural_control.md
+            - FisherDrift: reference/algorithms/structural_control/fisher_drift.md
             - LoadCheckpoint: reference/algorithms/structural_control/load_checkpoint.md
             - LoadLoRA: reference/algorithms/structural_control/load_lora.md
             - MergeKit wrapper: reference/algorithms/structural_control/mergekit_wrapper.md

@@ -35,6 +35,8 @@ Algorithm notebooks demonstrate how each method (i.e., control) operates. The me
 
     Structural control methods adapt the model's weights or architecture, such as by fine-tuning or merging checkpoints. These notebooks use our wrappers around established training and merging libraries. Current notebooks cover:
 
+    :octicons-arrow-right-24: [FisherDrift](./notebooks/algorithms/fisher_drift.ipynb)
+
     :octicons-arrow-right-24: [MergeKit wrapper](./notebooks/algorithms/wrappers/mergekit.ipynb)
 
     :octicons-arrow-right-24: [TRL wrapper](./notebooks/algorithms/wrappers/trl.ipynb)

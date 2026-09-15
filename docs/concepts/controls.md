@@ -92,6 +92,9 @@ Examples of structural control methods are fine-tuning methods (full, parameter 
 tuning, p-tuning), and model merging. Many of the structural control methods in the toolkit are implemented as wrappers
 around existing libraries. The toolkit implements:
 
+- `FisherDrift` ([API reference](../reference/algorithms/structural_control/fisher_drift.md))
+    - *Description*: estimates a true diagonal Fisher over reference next-token contexts and applies one LoRA target-gradient update under a damped quadratic drift budget.
+    - *Backends*: HF, vLLM (fitting is staged in process and the resulting LoRA adapter is served).
 - `LoadCheckpoint` ([API reference](../reference/algorithms/structural_control/load_checkpoint.md))
     - *Description*: installs a saved full-weights checkpoint as the pipeline model, the frozen form of trained structural controls in a [`.spipe`](spipe.md) bundle.
     - *Backends*: HF, vLLM (the checkpoint is served).
